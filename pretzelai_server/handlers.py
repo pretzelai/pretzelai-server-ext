@@ -3,7 +3,7 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
 from tornado.web import HTTPError
-import anthropic
+from anthropic import Anthropic, AuthenticationError
 
 
 import json
@@ -139,15 +139,60 @@ class FastEmbedHandler(APIHandler):
         pass
 
 
+class AnthropicKeyVerificationHandler(APIHandler):
+    @tornado.web.authenticated
+    async def post(self):
+        try:
+            # Parse the request body
+            body = json.loads(self.request.body.decode("utf-8"))
+            api_key = body.get("api_key")
+
+            if not api_key:
+                raise HTTPError(400, "Missing required parameter: api_key")
+
+            # Initialize Anthropic client
+            client = Anthropic(api_key=api_key)
+
+            # Attempt to create a simple message to verify the key
+            client.messages.create(
+                model="claude-3-5-sonnet-20240620",
+                max_tokens=1,
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            # If we reach here, the key is valid
+            self.write(json.dumps({"valid": True}))
+
+        except AuthenticationError:
+            # If we get an AuthenticationError, the key is invalid
+            self.write(
+                json.dumps({"valid": False, "error": "Invalid Anthropic API key"})
+            )
+        except Exception as e:
+            # For any other error, return a 500 status
+            self.set_status(500)
+            self.write(json.dumps({"valid": False, "error": str(e)}))
+
+        self.finish()
+
+    # Override check_xsrf_cookie to disable XSRF check for this handler
+    def check_xsrf_cookie(self):
+        pass
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
     route_pattern = url_path_join(base_url, "anthropic", "complete")
     handlers = [
-        (route_pattern, AnthropicProxyHandler),
+        (url_path_join(base_url, "anthropic", "complete"), AnthropicProxyHandler),
         (
             url_path_join(base_url, "anthropic", "complete_nostream"),
             AnthropicProxyHandlerSync,
+        ),
+        (
+            url_path_join(base_url, "anthropic", "verify_key"),
+            AnthropicKeyVerificationHandler,
         ),
         (url_path_join(base_url, "embed"), FastEmbedHandler),
     ]
