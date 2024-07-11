@@ -1,0 +1,19 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.3.3
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: founders@withpretzel.com
+author_name: Pretzel AI GmbH
+data_format: string
+file_extension: ''
+has_binder: false
+has_settings: false
+kind: server
+labextension_name: pretzelai-server
+mimetype: ''
+mimetype_name: ''
+project_short_description: Pretzel's Server Extension
+python_name: pretzelai_server
+repository: https://github.com/pretzelai/pretzelai-server-ext
+test: false
+viewer_name: ''
+
