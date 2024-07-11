@@ -3,7 +3,7 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
 from tornado.web import HTTPError
-from anthropic import Anthropic, AuthenticationError
+from anthropic import NOT_GIVEN, Anthropic, AuthenticationError
 
 
 import json
@@ -45,12 +45,11 @@ class AnthropicProxyHandler(APIHandler):
             self.set_header("Cache-Control", "no-cache")
             self.set_header("Connection", "keep-alive")
 
-            # Stream the response
             with client.messages.stream(
                 max_tokens=max_tokens,
                 messages=filtered_messages,
                 model=model,
-                system=system_message,  # Add system message as a separate parameter
+                system=system_message if system_message else NOT_GIVEN,
             ) as stream:
                 for event in stream:
                     self.write(
