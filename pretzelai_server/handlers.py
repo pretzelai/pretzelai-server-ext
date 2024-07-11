@@ -11,6 +11,7 @@ from jupyter_server.base.handlers import APIHandler
 import tornado
 from tornado.web import HTTPError
 import anthropic
+from fastembed import TextEmbedding
 
 
 class AnthropicProxyHandler(APIHandler):
@@ -59,9 +60,7 @@ class AnthropicProxyHandler(APIHandler):
 
     @tornado.web.authenticated
     def get(self):
-        self.finish(
-            json.dumps({"data": "This is /jupyterlab-examples-server/hello endpoint!"})
-        )
+        self.finish(json.dumps({"data": "This is /anthropic/complete endpoint!"}))
 
 
 class AnthropicProxyHandlerSync(APIHandler):
@@ -103,8 +102,41 @@ class AnthropicProxyHandlerSync(APIHandler):
     @tornado.web.authenticated
     def get(self):
         self.finish(
-            json.dumps({"data": "This is /jupyterlab-examples-server/hello endpoint!"})
+            json.dumps({"data": "This is /anthropic/complete_nostream endpoint!"})
         )
+
+
+class FastEmbedHandler(APIHandler):
+    @tornado.web.authenticated
+    async def post(self):
+        try:
+            # Parse the request body
+            body = json.loads(self.request.body.decode("utf-8"))
+            texts = body.get("texts")
+
+            if not texts:
+                raise HTTPError(400, "Missing required parameter: texts")
+
+            # Initialize the TextEmbedding model
+            model = TextEmbedding(model_name="jinaai/jina-embeddings-v2-small-en")
+
+            # Generate embeddings
+            embeddings = model.embed(texts)
+
+            # Convert embeddings to list for JSON serialization
+            embeddings_list = [emb.tolist() for emb in embeddings]
+
+            self.write(json.dumps({"embeddings": embeddings_list}))
+
+        except Exception as e:
+            self.set_status(500)
+            self.write(json.dumps({"error": str(e)}))
+
+        self.finish()
+
+    # Override check_xsrf_cookie to disable XSRF check for this handler
+    def check_xsrf_cookie(self):
+        pass
 
 
 def setup_handlers(web_app):
@@ -113,7 +145,11 @@ def setup_handlers(web_app):
     route_pattern = url_path_join(base_url, "anthropic", "complete")
     handlers = [
         (route_pattern, AnthropicProxyHandler),
-        (url_path_join(base_url, "anthropic", "complete2"), AnthropicProxyHandlerSync),
+        (
+            url_path_join(base_url, "anthropic", "complete_nostream"),
+            AnthropicProxyHandlerSync,
+        ),
+        (url_path_join(base_url, "embed"), FastEmbedHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)
 
@@ -126,3 +162,7 @@ def load_jupyter_server_extension(nbapp):
         nbapp (NotebookApp): handle to the Notebook webserver instance.
     """
     setup_handlers(nbapp.web_app)
+
+
+# download the model at initalization time
+TextEmbedding(model_name="jinaai/jina-embeddings-v2-small-en")
