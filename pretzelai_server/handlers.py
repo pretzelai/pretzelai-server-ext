@@ -28,6 +28,15 @@ class AnthropicProxyHandler(APIHandler):
             if not api_key or not messages:
                 raise HTTPError(400, "Missing required parameters")
 
+            # Extract system message if present
+            system_message = None
+            filtered_messages = []
+            for message in messages:
+                if message["role"] == "system":
+                    system_message = message["content"]
+                else:
+                    filtered_messages.append(message)
+
             # Initialize Anthropic client
             client = anthropic.Anthropic(api_key=api_key)
 
@@ -39,8 +48,9 @@ class AnthropicProxyHandler(APIHandler):
             # Stream the response
             with client.messages.stream(
                 max_tokens=max_tokens,
-                messages=messages,
+                messages=filtered_messages,
                 model=model,
+                system=system_message,  # Add system message as a separate parameter
             ) as stream:
                 for event in stream:
                     self.write(
@@ -53,14 +63,6 @@ class AnthropicProxyHandler(APIHandler):
             self.write(json.dumps({"error": str(e)}))
 
         self.finish()
-
-    # Override check_xsrf_cookie to disable XSRF check for this handler
-    def check_xsrf_cookie(self):
-        pass
-
-    @tornado.web.authenticated
-    def get(self):
-        self.finish(json.dumps({"data": "This is /anthropic/complete endpoint!"}))
 
 
 class AnthropicProxyHandlerSync(APIHandler):
