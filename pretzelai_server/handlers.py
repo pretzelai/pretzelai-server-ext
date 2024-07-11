@@ -6,6 +6,13 @@ from tornado.web import HTTPError
 import anthropic
 
 
+import json
+from jupyter_server.base.handlers import APIHandler
+import tornado
+from tornado.web import HTTPError
+import anthropic
+
+
 class AnthropicProxyHandler(APIHandler):
     @tornado.web.authenticated
     async def post(self):
@@ -34,12 +41,11 @@ class AnthropicProxyHandler(APIHandler):
                 messages=messages,
                 model=model,
             ) as stream:
-                for text in stream.text_stream:
-                    self.write(f"data: {json.dumps({'text': text})}\n\n")
+                for event in stream:
+                    self.write(
+                        f"event: {event.type}\ndata: {json.dumps(event.model_dump())}\n\n"
+                    )
                     await self.flush()
-
-            self.write("data: [DONE]\n\n")
-            await self.flush()
 
         except Exception as e:
             self.set_status(500)
