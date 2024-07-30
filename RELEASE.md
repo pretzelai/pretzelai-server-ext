@@ -78,3 +78,8 @@ Here is a summary of the steps to cut a new release:
 If the package is not on conda forge yet, check the documentation to learn how to add it: https://conda-forge.org/docs/maintainer/adding_pkgs.html
 
 Otherwise a bot should pick up the new version publish to PyPI, and open a new PR on the feedstock repository automatically.
+
+---
+
+- `jlpm clean:all`
+- `jlpm build:prod`
